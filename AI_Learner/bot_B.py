@@ -33,8 +33,11 @@ class RandomBot(BaseBot):
     taverns = []
     walls = []
     enemies = []
+
     dist_mine = 0
     dist_tavern = 0
+    dist_enemy = 0
+
     command = None
 
     #test
@@ -45,7 +48,7 @@ class RandomBot(BaseBot):
     currentstate=None
     #
     pastStates=[]
-    actions=["goPub","goMine"]
+    actions=["goPub","goMine","Attack"]
 
     def start(self):
         self.datastream=DataStream()
@@ -70,11 +73,21 @@ class RandomBot(BaseBot):
         self._enemies_information()
         self._current_vmap()
 
+
+        health=""
+        if(self.state["hero"]["life"]<34):
+            health="low"
+        elif(self.state["hero"]["life"]<67):
+            health="medium"
+        else:
+            health="high"
+
         # currentGameState
-        state = [self.state["hero"]["life"],  # health
+        state = [health,  # health
                  self.state["hero"]["mineCount"],    # mines owned
                  self._get_shortest_dist_mine(),    # pub dist
                  self._get_shortest_dist_tavern(),    # mine dist
+                 self._get_shortest_dist_enemy(),# Enemy Dist
                  ]
 
         # select action
@@ -95,15 +108,23 @@ class RandomBot(BaseBot):
             else:
                 actionProb.append(0.5)
 
+        # make choice
+        # 1.goMine()
+        # 2.goPub()
+        # 3.Attack()
+        if(self.state["hero"]["mineCount"]==8):
+            actionProb[1]=0;
+
         s = sum(actionProb)
         r = [i / s for i in actionProb]
         choice = np.random.choice(self.actions, len(self.actions), p=r)
 
         print("Turn: %d  Action: %s" % (self.game.turn, choice[0]))
 
-        #call action function for choice
+        #make choice
         # 1.goMine()
         # 2.goPub()
+        # 3.Attack()
 
 
 
@@ -111,6 +132,7 @@ class RandomBot(BaseBot):
                               state[1],  # mines owned
                               state[2],  # pub dist
                               state[3],  # mine dist
+                              state[4],  # enemy dist
                               choice[0],  # action
                                .5 ]
 
@@ -119,20 +141,27 @@ class RandomBot(BaseBot):
                             (self.datastream.df['Mines Owned'] == currentActionState[1]) &
                             (self.datastream.df['Pub Dist'] == currentActionState[2]) &
                             (self.datastream.df['Mine Dist'] == currentActionState[3]) &
-                            (self.datastream.df["action"] == currentActionState[4])
+                            (self.datastream.df['Enemy Dist'] == currentActionState[4]) &
+                            (self.datastream.df["action"] == currentActionState[5])
         , ['Health']].index
 
         if (len(index) <= 0):  # if index not found
+
             # create append to current dataframe
+            if(currentActionState[5]=="goMine"):
+                currentActionState[6]=0.75
+
+
             newRowData = pd.DataFrame([currentActionState], columns=(
-            'Health', 'Mines Owned', 'Pub Dist', 'Mine Dist', "action", "prob"))
+            'Health', 'Mines Owned', 'Pub Dist', 'Mine Dist','Enemy Dist', "action", "prob"))
             self.datastream.df = self.datastream.df.append(newRowData, ignore_index=True)
 
             index = self.datastream.df.loc[(self.datastream.df['Health'] == currentActionState[0]) &
                                 (self.datastream.df['Mines Owned'] == currentActionState[1]) &
                                 (self.datastream.df['Pub Dist'] == currentActionState[2]) &
                                 (self.datastream.df['Mine Dist'] == currentActionState[3]) &
-                                (self.datastream.df["action"] == currentActionState[4])
+                                (self.datastream.df['Enemy Dist'] == currentActionState[4]) &
+                                (self.datastream.df["action"] == currentActionState[5])
             , ['Health']].index
 
             # add new index to states before death
@@ -161,6 +190,8 @@ class RandomBot(BaseBot):
             self._go_to_nearest_mine()
         elif(choice[0]=="goPub"):
             self._go_to_nearest_tavern()
+        elif(choice[0]=="Attack"):
+            self._attack_enemy()
 
         print(self.command)
         return self.command
@@ -242,6 +273,43 @@ class RandomBot(BaseBot):
         shortest_dist = self._get_shortest_dist_mine()
         #return shortest_dist
 
+
+
+
+        def _get_shortest_dist_mine(self):
+            self.command = None
+            shortest_dist = 1000
+            temp = self._current_vmap()
+            temp.print_grid()
+            targetX = 0
+            targetY = 0
+
+            for mine in self.mines:
+                if mine.owner != self.id:
+                    current_dist = temp.get_distance(temp, mine.x, mine.y)
+                    if shortest_dist > current_dist:
+                        shortest_dist = current_dist
+                        targetX = mine.x
+                        targetY = mine.y
+            direction = temp.get_direction(temp, targetX, targetY)
+            self.command = direction
+
+            if isinstance(direction, tuple):
+                if self.positionX == targetX:
+                    if self.positionY < targetY:
+                        self.command = 'South'
+                    elif self.positionY > targetY:
+                        self.command = 'North'
+                elif self.positionY == targetY:
+                    if self.positionX < targetX:
+                        self.command = 'East'
+                    elif self.positionX > targetX:
+                        self.command = 'West'
+
+            return shortest_dist
+
+
+
     def _get_shortest_dist_mine(self):
         self.command = None
         shortest_dist = 1000
@@ -293,24 +361,32 @@ class RandomBot(BaseBot):
         self.command = None
         shortest_dist = 1000
         temp = self._current_vmap()
-        #temp.print_grid()
+        temp.print_grid()
+        targetX = 0
+        targetY = 0
         for tavern in self.taverns:
             current_dist = temp.get_distance(temp, tavern.x, tavern.y)
-            direction = temp.get_direction(temp, tavern.x, tavern.y)
             if shortest_dist > current_dist:
                 shortest_dist = current_dist
-                self.command = direction
-            if isinstance(self.command, tuple):
-                if self.positionX == tavern.x:
-                    if self.positionY < tavern.y:
-                        self.command = 'South'
-                    elif self.positionY > tavern.y:
-                        self.command = 'North'
-                elif self.positionY == tavern.y:
-                    if self.positionX < tavern.x:
-                        self.command = 'East'
-                    elif self.positionX > tavern.x:
-                        self.command = 'West'
+                targetX = tavern.x
+                targetY = tavern.y
+        direction = temp.get_direction(temp, targetX, targetY)
+        print('original:')
+        print(direction)
+        self.command = direction
+        if isinstance(direction, tuple):
+            if self.positionX == targetX:
+                if self.positionY < targetY:
+                    self.command = 'South'
+                elif self.positionY > targetY:
+                    self.command = 'North'
+            elif self.positionY == targetY:
+                if self.positionX < targetX:
+                    self.command = 'East'
+                elif self.positionX > targetX:
+                    self.command = 'West'
+        print('targetX: %s' % (targetX))
+        print('targetY: %s' % (targetY))
         return shortest_dist
 
     def _call_advantage_function(self):
@@ -334,6 +410,36 @@ class RandomBot(BaseBot):
             temp *= 0.5 * self.datastream.df.iloc[index, self.datastream.df.columns.get_loc('prob')]
 
         print(self.datastream.df)
+
+    def _attack_enemy(self):
+        shortest_dist = self._get_shortest_dist_enemy()
+        return shortest_dist
+
+    def _get_shortest_dist_enemy(self):
+        shortest_dist = 1000
+        temp = self._current_vmap()
+        targetX = 0
+        targetY = 0
+        for enemy in self.enemies:
+            current_dist = temp.get_distance(temp, enemy['pos']['y'], enemy['pos']['x'])
+            if shortest_dist > current_dist:
+                shortest_dist = current_dist
+                targetX = enemy['pos']['y']
+                targetY = enemy['pos']['x']
+        direction = temp.get_direction(temp, targetX, targetY)
+        self.command = direction
+        if isinstance(direction, tuple):
+            if self.positionX == targetX:
+                if self.positionY < targetY:
+                    self.command = 'South'
+                elif self.positionY > targetY:
+                    self.command = 'North'
+            elif self.positionY == targetY:
+                if self.positionX < targetX:
+                    self.command = 'East'
+                elif self.positionX > targetX:
+                    self.command = 'West'
+        return shortest_dist
 
     def _call_advantage_function2(self):
 

@@ -14,20 +14,20 @@ class DataStream:
             if self.df.empty:
                 print("File is empty.")
                 self.df = pd.DataFrame(columns=(
-                    'Health', 'Mines Owned', 'Pub Dist', 'Mine Dist', "action", "prob"))
+                    'Health', 'Mines Owned', 'Pub Dist', 'Mine Dist','Enemy Dist', "action", "prob"))
             # else:
         else:
             if os.path.exists("Data"):
                 fp = open("Data/GameInformation.csv", 'w+')
                 fp.close()
                 self.df = pd.DataFrame(columns=(
-                    'Health', 'Mines Owned','Pub Dist', 'Mine Dist', "action","prob"))
+                    'Health', 'Mines Owned','Pub Dist', 'Mine Dist','Enemy Dist', "action","prob"))
             else:
                 os.mkdir("Data")
                 fp = open("Data/GameInformation.csv", 'w+')
                 fp.close()
                 self.df = pd.DataFrame(columns=(
-                    'Health', 'Mines Owned', 'Pub Dist', 'Mine Dist', "action", "prob"))
+                    'Health', 'Mines Owned', 'Pub Dist', 'Mine Dist','Enemy Dist', "action", "prob"))
 
     def update(self):
         if os.path.exists("Data/GameInformation.csv"):
