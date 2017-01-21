@@ -113,7 +113,7 @@ class RandomBot(BaseBot):
         # 2.goPub()
         # 3.Attack()
         if(self.state["hero"]["mineCount"]==8):
-            actionProb[1]=0;
+            actionProb[1]=0
 
         s = sum(actionProb)
         r = [i / s for i in actionProb]
@@ -180,12 +180,14 @@ class RandomBot(BaseBot):
             self._call_advantage_function2()
             self.lastminecount = self.state["hero"]["mineCount"]
 
+        self.datastream.df.to_csv("Data/GameInformation.csv", sep=',')
 
         print(choice[0])
 
         #if choice[0] string action example goPub
 
         self.command=random.choice(['Stay', 'North', 'West', 'East', 'South'])
+
         if(choice[0]=="goMine"):
             self._go_to_nearest_mine()
         elif(choice[0]=="goPub"):

@@ -35,18 +35,6 @@ class DataStream:
             if self.df.last_valid_index() is None:
                 # Create test state
                 self.df.to_csv("Data/GameInformation.csv", sep=',')
-            else:
-                self.last_index += 1
-                self.df.loc[self.last_index] = [80,  # health
-                                                25,  # gold
-                                                3,  # mines owned
-                                                12,  # thirst
-                                                5,  # pub dist
-                                                6,  # mine dist
-                                                7,  # mines occupied
-                                                "goMine",  # action
-                                                .5]  # probability
-                # Create test state
-                self.df.to_csv("Data/GameInformation.csv", sep=',')
+
         else:
             print("File error: file is not exist.")
